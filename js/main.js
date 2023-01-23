@@ -1,6 +1,7 @@
 "use strict";
 
 import {MAPBOX_API_KEY, OPENWEATHER_API_KEY} from "./keys.js";
+import * as Call from "./call.js";
 
 mapboxgl.accessToken = MAPBOX_API_KEY;
 const mapStyles = {
@@ -12,18 +13,31 @@ const mapStyles = {
 const map = new mapboxgl.Map({
     container: 'map',
     style: mapStyles.streets,
-    zoom: 8,
+    zoom: 10,
     center: [-98.4916, 29.4252]
 });
 
-function createMarker(coords) {
-    return new mapboxgl.Marker()
+function createPopup(coords, popupHTML = '') {
+    return new mapboxgl.Popup()
         .setLngLat(coords)
-        .addTo(map);
+        .setHTML(popupHTML);
 }
 
 function search() {
 
+}
+
+async function getFiveDayForecastAtLocation(coords) {
+    const res = await Call.openWeather.getForecastAtLocation(coords, OPENWEATHER_API_KEY);
+    const arr = res.list;
+    const firstTime = arr[0].dt_txt.split(' ')[1];
+    let forecast = [];
+    for (let i = 0; i < arr.length; i++) {
+        if (arr[i].dt_txt.split(' ')[1] === firstTime) {
+            forecast.push(arr[i]);
+        }
+    }
+    return forecast;
 }
 
 map.on('load', function () {
@@ -40,4 +54,10 @@ map.on('load', function () {
                 showUserHeading: false
             })
         );
+    const marker = new mapboxgl.Marker()
+        .setLngLat(map.getCenter())
+        .setPopup(createPopup(map.getCenter()))
+        .addTo(map)
+        .togglePopup();
 });
+
