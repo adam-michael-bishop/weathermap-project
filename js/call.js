@@ -18,7 +18,7 @@ const mapbox = {
 
 const openWeather = {
     getForecastAtLocation: function (location, tokenOpenWeather) {
-        return fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${location.lat.toFixed(2)}&lon=${location.lng.toFixed(2)}&appid=${tokenOpenWeather}`)
+        return fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${location.lat.toFixed(2)}&lon=${location.lng.toFixed(2)}&appid=${tokenOpenWeather}&units=imperial`)
             .then(function (res) {
                 return res.json()
             }).catch(function (err) {
