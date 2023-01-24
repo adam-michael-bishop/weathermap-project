@@ -35,29 +35,25 @@ function createPopup(coords, popupHTML = '') {
 		.setMaxWidth('250px');
 }
 
-function search() {
-
-}
-
 async function getFiveDayForecastAtLocation(coords) {
 	const res = await Call.openWeather.getForecastAtLocation(coords, OPENWEATHER_API_KEY);
 	const arr = res.list;
 	const firstTime = arr[0].dt_txt.split(' ')[1];
-	let forecast = [];
+	let forecastArray = [];
 	for (let i = 0; i < arr.length; i++) {
 		if (arr[i].dt_txt.split(' ')[1] === firstTime) {
-			forecast.push(arr[i]);
+			forecastArray.push(arr[i]);
 		}
 	}
-	return forecast;
+	return {cityName: res.city.name, forecasts: forecastArray}
 }
 
-function createFiveDayForecastHTML(forecastArray) {
-	let html = '';
-	for (const [i, forecast] of forecastArray.entries()) {
+function createFiveDayForecastHTML({cityName, forecasts}) {
+	let html = `<h5 class="text-center">${cityName}</h5>`;
+	for (const [i, forecast] of forecasts.entries()) {
 		html += `<div class="carousel-item ${i === 0 ? 'active' : ''}">
                     <div class="d-flex flex-column mx-auto px-5">
-                        <h5 class="text-center mt-4">${days[new Date(forecast.dt * 1000).getDay()]}</h5>
+                        <p class="text-center fs-6">${days[new Date(forecast.dt * 1000).getDay()]}</p>
                         <div class="d-flex">
                             <p>${forecast.weather[0].description}</p>
                             <img class="weather-img ms-auto" src="http://openweathermap.org/img/w/${forecast.weather[0].icon}.png" alt="${forecast.weather[0].main}">
@@ -70,6 +66,7 @@ function createFiveDayForecastHTML(forecastArray) {
                     </div>
                  </div>`
 	}
+	console.log(cityName);
 	return popupStart + html + popupEnd;
 }
 
@@ -85,13 +82,32 @@ map.on('load', function () {
 		}));
 	const marker = new mapboxgl.Marker({
 		draggable: true
-	})
-		.setLngLat(map.getCenter())
+	}).setLngLat(map.getCenter())
 		.addTo(map);
+	$('#search-form').submit(function (e){
+		e.preventDefault();
+		Call.mapbox.getJSONSearchQuery($('#search-bar').val(), MAPBOX_API_KEY)
+			.then(function (res){
+				marker.setLngLat(res.features[0].center)
+					.togglePopup();
+				map.flyTo({
+					center: marker.getLngLat(),
+					zoom: 8,
+				})
+				getFiveDayForecastAtLocation(marker.getLngLat())
+					.then(function (res){
+						marker.setPopup(createPopup(marker.getLngLat(), createFiveDayForecastHTML(res)))
+							.togglePopup();
+					})
+			})
+	});
 	getFiveDayForecastAtLocation(map.getCenter())
 		.then(function (res){
 			marker.setPopup(createPopup(map.getCenter(), createFiveDayForecastHTML(res)))
 				.togglePopup();
+		})
+		.catch(function (err){
+			console.log(err);
 		});
 	marker.on('dragstart', function (){
 		if (marker.getPopup().isOpen()) {
@@ -104,7 +120,12 @@ map.on('load', function () {
 			.then(function (res){
 				marker.setPopup(createPopup(newLocation, createFiveDayForecastHTML(res)))
 					.togglePopup();
-			});
+			}).catch(function (err){
+				console.log(err);
+		});
 	});
 });
 
+$('#search-form').submit(function (e){
+	e.preventDefault();
+});
