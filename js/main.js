@@ -13,8 +13,8 @@ const mapStyles = {
 }
 const map = new mapboxgl.Map({
 	container: 'map',
-	style: mapStyles.streets,
-	zoom: 10,
+	style: localStorage.getItem("theme") !== 'dark' ? mapStyles.streets : mapStyles.dark,
+	zoom: 1,
 	center: [-98.4916, 29.4252]
 });
 const marker = new mapboxgl.Marker({
@@ -100,7 +100,7 @@ function displaySearchNotFoundAlert(res) {
 }
 
 function displayErrorMessage() {
-	$('#error-message').text(`Something went wrong ¯\\_(ツ)_/¯`)
+	$('#error-message').text(`Something went wrong ¯\\_(ツ)_/¯ click to dismiss`)
 		.removeClass('d-none')
 		.click(function (){
 			$(this).addClass('d-none');
@@ -113,14 +113,31 @@ function hideAlerts() {
 }
 
 function moveMarkerAndDisplayForecast(newLocation) {
+	console.log(newLocation);
 	Call.openWeather.getForecastAtLocation(newLocation, OPENWEATHER_API_KEY)
 		.then(function (res) {
 			const forecast = getFiveDayForecastAtLocation(newLocation, res);
 			marker.setPopup(createPopup(newLocation, createFiveDayForecastHTML(forecast)))
 				.togglePopup();
 		}).catch(function () {
-		displayErrorMessage();
+			let popup = new mapboxgl.Popup({
+				closeButton: false
+			}).addClassName('warning-popup')
+				.setLngLat(marker.getLngLat())
+				.setHTML(`Something went wrong. Try moving the pin to a new location`)
+				.setMaxWidth('100px');
+			marker.setPopup(popup).togglePopup();
 	});
+}
+
+function fixMarkerLng({lng, lat}) {
+	let newCoords = {lng: lng, lat: lat}
+	if (lng > 180) {
+		newCoords.lng -= 360;
+	} else if (lng < -180) {
+		newCoords.lng += 360;
+	}
+	return newCoords
 }
 
 map.on('load', function () {
@@ -141,16 +158,22 @@ map.on('load', function () {
 					zoom: 8,
 				});
 				moveMarkerAndDisplayForecast(marker.getLngLat());
-			});
+			}).catch(function (){
+				displayErrorMessage();
+		});
+	});
+	const geocoder = new MapboxGeocoder({
+		accessToken: mapboxgl.accessToken,
+		mapboxgl: mapboxgl,
+		marker: false
 	});
 	map.resize()
-		.addControl(new mapboxgl.GeolocateControl({
-			positionOptions: {
-				enableHighAccuracy: true
-			}, // When active the map will receive updates to the device's location as it changes.
-			trackUserLocation: true, // Draw an arrow next to the location dot to indicate which direction the device is heading.
-			showUserHeading: false
-		}));
+		.addControl(geocoder);
+	geocoder.on('result', function (result){
+		console.log(result);
+		marker.setLngLat(result.result.center);
+		moveMarkerAndDisplayForecast({lat: result.result.center[1], lng: result.result.center[0]});
+	})
 	marker.setLngLat(map.getCenter())
 		.addTo(map);
 	moveMarkerAndDisplayForecast(map.getCenter());
@@ -161,33 +184,46 @@ map.on('load', function () {
 	});
 	marker.on('dragend', function (){
 		marker.getPopup()
+			.removeClassName('warning-popup')
 			.setHTML(`<div id="popup-loading" class="spinner-border" role="status">
 						<span class="visually-hidden">Loading...</span>
 					</div>`);
 		marker.togglePopup();
-		moveMarkerAndDisplayForecast(marker.getLngLat());
+		console.log(marker.getLngLat());
+		moveMarkerAndDisplayForecast(fixMarkerLng(marker.getLngLat()));
 	});
 });
+
+$('html').attr('data-bs-theme', `${localStorage.getItem('theme')}`)
 
 $('#search-form').submit(function (e){
 	e.preventDefault();
 });
 
-$('#switch-theme').change(function (){
+$('#switch-theme')
+	.prop("checked", localStorage.getItem('theme') === 'dark')
+	.change(function (){
 	if (this.checked) {
-		$('#theme-icon-dark').removeClass('d-none');
-		$('#theme-icon-light').addClass('d-none');
+		// $('#theme-icon-dark').removeClass('d-none');
+		// $('#theme-icon-light').addClass('d-none');
 		$('html').attr("data-bs-theme", "dark");
-		map.setStyle(mapStyles.dark)
-		marker.getPopup()
-			.toggleClassName('popup-dark');
+		map.setStyle(mapStyles.dark);
+		if (!(marker.getPopup()._classList.has('warning-popup'))) {
+			marker.getPopup()
+				.addClassName('popup-dark');
+		}
+		localStorage.setItem('theme', 'dark');
 	} else {
-		$('#theme-icon-light').removeClass('d-none');
-		$('#theme-icon-dark').addClass('d-none');
+		// $('#theme-icon-light').removeClass('d-none');
+		// $('#theme-icon-dark').addClass('d-none');
 		$('html').attr("data-bs-theme", "light");
 		map.setStyle(mapStyles.streets)
+		if (!(marker.getPopup()._classList.has('warning-popup'))) {
 		marker.getPopup()
-			.toggleClassName('popup-dark');
+			.removeClassName('popup-dark');
+		}
+		localStorage.setItem('theme', 'light');
+
 	}
 });
 
