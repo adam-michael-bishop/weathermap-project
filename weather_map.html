@@ -1,24 +1,33 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-bs-theme="light">
 <head>
-	<link href="css/style.css" rel="stylesheet"/>
-	<link href='https://api.mapbox.com/mapbox-gl-js/v2.12.0/mapbox-gl.css' rel='stylesheet'/>
-	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet"
-	      integrity="sha384-GLhlTQ8iRABdZLl6O3oVMWSktQOp6b7In1Zl3/Jr59b6EGGoI1aFkw7cmDA6j6gD" crossorigin="anonymous">
-	<meta charset="UTF-8">
-	<title>WeatherMap</title>
+    <link href="css/style.css" rel="stylesheet"/>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v2.12.0/mapbox-gl.css' rel='stylesheet'/>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet"
+          integrity="sha384-GLhlTQ8iRABdZLl6O3oVMWSktQOp6b7In1Zl3/Jr59b6EGGoI1aFkw7cmDA6j6gD" crossorigin="anonymous">
+    <meta charset="UTF-8">
+    <title>WeatherMap</title>
 </head>
 <body>
-<nav class="navbar bg-light" id="main-nav">
-	<div class="container-fluid">
-		<a href="#" class="navbar-brand">WeatherMap</a>
-		<div class="navbar-nav" id="navbarSupportedContent">
-			<form id="search-form" class="d-flex ms-auto">
-				<input id="search-bar" class="form-control me-2" type="search" placeholder="Search for a city">
-				<button class="btn btn-outline-primary" type="submit"><i class="fa-solid fa-magnifying-glass"></i></button>
-			</form>
-		</div>
-	</div>
+<nav class="navbar navbar-expand-lg" id="main-nav">
+    <div class="container-fluid">
+        <a href="#" class="navbar-brand"><i class="fa-solid fa-cloud-sun"></i> WeatherMap</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+            <form id="search-form" class="d-flex mt-3 mt-lg-0 w-50">
+                <input id="search-bar" class="form-control me-2" type="search" placeholder="Search for a city">
+                <button class="btn btn-outline-primary" type="submit"><i class="fa-solid fa-magnifying-glass"></i>
+                </button>
+            </form>
+            <div class="form-check form-switch ms-auto mt-3 mt-lg-0">
+                <input type="checkbox" class="form-check-input" id="switch-theme"><label
+                    for="switch-theme" class="form-check-label">
+                <i id="theme-icon-dark" class="fa-regular fa-sun d-none"></i><i id="theme-icon-light" class="fa-solid fa-moon"></i></label>
+            </div>
+        </div>
+    </div>
 </nav>
 <div id="map"></div>
 

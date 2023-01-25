@@ -1,4 +1,12 @@
-.weather-img{
+.weather-img {
     width: 25px;
     height: 25px;
+}
+.popup-dark .mapboxgl-popup-content {
+    background-color: #212529;
+}
+@media screen and (min-width: 992px) {
+    #navbarSupportedContent {
+        max-width: 66.66%;
+    }
 }

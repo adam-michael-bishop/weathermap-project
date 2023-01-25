@@ -12,8 +12,15 @@ const mapStyles = {
 	dark: 'mapbox://styles/mapbox/dark-v11'
 }
 const map = new mapboxgl.Map({
-	container: 'map', style: mapStyles.streets, zoom: 10, center: [-98.4916, 29.4252]
+	container: 'map',
+	style: mapStyles.streets,
+	zoom: 10,
+	center: [-98.4916, 29.4252]
 });
+const marker = new mapboxgl.Marker({
+	draggable: true
+})
+let windowHeight = $(window).height();
 const popupStart = `
 <div id="carouselExampleControls" class="carousel carousel-dark slide" data-bs-interval="false">
   <div class="carousel-inner">`
@@ -29,10 +36,15 @@ const popupEnd = `
 </div>`
 
 function createPopup(coords, popupHTML = '') {
+	let theme = '';
+	if ($('html').attr("data-bs-theme") === 'dark') {
+		theme = 'popup-dark';
+	}
 	return new mapboxgl.Popup()
 		.setLngLat(coords)
 		.setHTML(popupHTML)
-		.setMaxWidth('250px');
+		.setMaxWidth('250px')
+		.addClassName(theme);
 }
 
 async function getFiveDayForecastAtLocation(coords) {
@@ -71,7 +83,9 @@ function createFiveDayForecastHTML({cityName, forecasts}) {
 }
 
 map.on('load', function () {
-	$('#map').height($(window).height());
+	$('#map').height($(window).height() - $('#main-nav').outerHeight());
+	// console.log($(window).height());
+	// console.log($('#main-nav').height());
 	map.resize()
 		.addControl(new mapboxgl.GeolocateControl({
 			positionOptions: {
@@ -80,9 +94,7 @@ map.on('load', function () {
 			trackUserLocation: true, // Draw an arrow next to the location dot to indicate which direction the device is heading.
 			showUserHeading: false
 		}));
-	const marker = new mapboxgl.Marker({
-		draggable: true
-	}).setLngLat(map.getCenter())
+	marker.setLngLat(map.getCenter())
 		.addTo(map);
 	$('#search-form').submit(function (e){
 		e.preventDefault();
@@ -101,14 +113,14 @@ map.on('load', function () {
 					})
 			})
 	});
-	getFiveDayForecastAtLocation(map.getCenter())
-		.then(function (res){
-			marker.setPopup(createPopup(map.getCenter(), createFiveDayForecastHTML(res)))
-				.togglePopup();
-		})
-		.catch(function (err){
-			console.log(err);
-		});
+	// getFiveDayForecastAtLocation(map.getCenter())
+	// 	.then(function (res){
+	// 		marker.setPopup(createPopup(map.getCenter(), createFiveDayForecastHTML(res)))
+	// 			.togglePopup();
+	// 	})
+	// 	.catch(function (err){
+	// 		console.log(err);
+	// 	});
 	marker.on('dragstart', function (){
 		if (marker.getPopup().isOpen()) {
 			marker.togglePopup()
@@ -129,3 +141,28 @@ map.on('load', function () {
 $('#search-form').submit(function (e){
 	e.preventDefault();
 });
+
+$('#switch-theme').change(function (){
+	if (this.checked) {
+		$('#theme-icon-dark').removeClass('d-none');
+		$('#theme-icon-light').addClass('d-none');
+		$('html').attr("data-bs-theme", "dark");
+		map.setStyle(mapStyles.dark)
+		marker.getPopup()
+			.toggleClassName('popup-dark');
+	} else {
+		$('#theme-icon-light').removeClass('d-none');
+		$('#theme-icon-dark').addClass('d-none');
+		$('html').attr("data-bs-theme", "light");
+		map.setStyle(mapStyles.streets)
+		marker.getPopup()
+			.toggleClassName('popup-dark');
+	}
+});
+
+$(window).resize(function (){
+	if (windowHeight !== window.innerHeight) {
+		windowHeight = window.innerHeight;
+		$('#map').height($(window).height() - $('#main-nav').outerHeight());
+	}
+})
