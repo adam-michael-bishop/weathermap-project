@@ -1,3 +1,21 @@
+:root {
+    --spinner-width: 150px;
+    --spinner-height: 150px;
+}
+#map-loading {
+    position: absolute;
+    z-index: 100;
+    top: calc(50% - (var(--spinner-height) / 2));
+    left: calc(50% - (var(--spinner-width) / 2));
+    width: var(--spinner-width);
+    height: var(--spinner-height);
+}
+#search-not-found, #error-message {
+    position: absolute;
+    z-index: 100;
+    left: 50%;
+    transform: translateX(-50%);
+}
 .weather-img {
     width: 25px;
     height: 25px;
