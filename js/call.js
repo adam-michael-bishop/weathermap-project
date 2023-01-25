@@ -9,9 +9,11 @@ const mapbox = {
         const searchText = encodeURIComponent(search) + '.json';
         return fetch(baseUrl + endPointUrl + searchText + '?' + 'access_token=' + tokenMapbox)
             .then(function (res) {
-                return res.json()
+                if (res.ok) {
+                    return res.json()
+                }
             }).catch(function (err) {
-                console.log(err);
+                return err
             });
     }
 }
@@ -20,9 +22,11 @@ const openWeather = {
     getForecastAtLocation: function (location, tokenOpenWeather) {
         return fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${location.lat.toFixed(2)}&lon=${location.lng.toFixed(2)}&appid=${tokenOpenWeather}&units=imperial`)
             .then(function (res) {
-                return res.json()
+                if (res.ok) {
+                    return res.json()
+                }
             }).catch(function (err) {
-                console.log(err);
+                return err
             });
     }
 }
