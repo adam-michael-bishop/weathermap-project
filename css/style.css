@@ -16,6 +16,10 @@
     left: 50%;
     transform: translateX(-50%);
 }
+.warning-popup .mapboxgl-popup-content{
+    background-color: var(--bs-danger-bg-subtle);
+    color: var(--bs-danger-text);
+}
 .weather-img {
     width: 25px;
     height: 25px;
