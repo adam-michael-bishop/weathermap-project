@@ -19,45 +19,46 @@ const map = new mapboxgl.Map({
 });
 const marker = new mapboxgl.Marker({
 	draggable: true
-})
+});
 let windowHeight = $(window).height();
 const popupStart = `
-<div id="carouselExampleControls" class="carousel carousel-dark slide" data-bs-interval="false">
-  <div class="carousel-inner">`
+				<div id="carouselExampleControls" class="carousel carousel-dark slide" data-bs-interval="false">
+					<div class="carousel-inner">`
 const popupEnd = `
-<button class="carousel-control-prev" type="button" data-bs-target="#carouselExampleControls" data-bs-slide="prev">
-    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-    <span class="visually-hidden">Previous</span>
-  </button>
-  <button class="carousel-control-next" type="button" data-bs-target="#carouselExampleControls" data-bs-slide="next">
-    <span class="carousel-control-next-icon" aria-hidden="true"></span>
-    <span class="visually-hidden">Next</span>
-  </button>
-</div>`
+				<button class="carousel-control-prev" type="button" data-bs-target="#carouselExampleControls" data-bs-slide="prev">
+				<span class="carousel-control-prev-icon" aria-hidden="true"></span>
+					<span class="visually-hidden">Previous</span>
+				  </button>
+				  <button class="carousel-control-next" type="button" data-bs-target="#carouselExampleControls" data-bs-slide="next">
+					<span class="carousel-control-next-icon" aria-hidden="true"></span>
+					<span class="visually-hidden">Next</span>
+				  </button>
+				</div>`
 
 function createPopup(coords, popupHTML = '') {
 	let theme = '';
 	if ($('html').attr("data-bs-theme") === 'dark') {
 		theme = 'popup-dark';
 	}
-	return new mapboxgl.Popup()
+	return new mapboxgl.Popup({
+		closeButton: false
+	})
 		.setLngLat(coords)
 		.setHTML(popupHTML)
 		.setMaxWidth('250px')
 		.addClassName(theme);
 }
 
-async function getFiveDayForecastAtLocation(coords) {
-	const res = await Call.openWeather.getForecastAtLocation(coords, OPENWEATHER_API_KEY);
-	const arr = res.list;
-	const firstTime = arr[0].dt_txt.split(' ')[1];
-	let forecastArray = [];
-	for (let i = 0; i < arr.length; i++) {
-		if (arr[i].dt_txt.split(' ')[1] === firstTime) {
-			forecastArray.push(arr[i]);
+function getFiveDayForecastAtLocation(coords, res) {
+		const arr = res.list;
+		const firstTime = arr[0].dt_txt.split(' ')[1];
+		let forecastArray = [];
+		for (let i = 0; i < arr.length; i++) {
+			if (arr[i].dt_txt.split(' ')[1] === firstTime) {
+				forecastArray.push(arr[i]);
+			}
 		}
-	}
-	return {cityName: res.city.name, forecasts: forecastArray}
+		return {cityName: res.city.name, forecasts: forecastArray}
 }
 
 function createFiveDayForecastHTML({cityName, forecasts}) {
@@ -78,14 +79,70 @@ function createFiveDayForecastHTML({cityName, forecasts}) {
                     </div>
                  </div>`
 	}
-	console.log(cityName);
 	return popupStart + html + popupEnd;
 }
 
+function displaySearchNotFoundAlert(res) {
+	const searchTerm = res.query.join( ' ');
+	let	hideSearchAlertTimeout = setTimeout(function () {
+		if (!($('#search-not-found').hasClass('d-none'))) {
+			$('#search-not-found').addClass('d-none');
+			clearTimeout(hideSearchAlertTimeout);
+		}
+	}, 5000);
+	$('#search-not-found')
+		.removeClass('d-none')
+		.text(`${searchTerm[0].toUpperCase() + searchTerm.substring(1, searchTerm.length)} was not found.`)
+		.click(function (){
+			$(this).addClass('d-none');
+			clearTimeout(hideSearchAlertTimeout);
+		});
+}
+
+function displayErrorMessage() {
+	$('#error-message').text(`Something went wrong ¯\\_(ツ)_/¯`)
+		.removeClass('d-none')
+		.click(function (){
+			$(this).addClass('d-none');
+		})
+}
+
+function hideAlerts() {
+	$('#error-message').addClass('d-none');
+	$('#search-not-found').addClass('d-none');
+}
+
+function moveMarkerAndDisplayForecast(newLocation) {
+	Call.openWeather.getForecastAtLocation(newLocation, OPENWEATHER_API_KEY)
+		.then(function (res) {
+			const forecast = getFiveDayForecastAtLocation(newLocation, res);
+			marker.setPopup(createPopup(newLocation, createFiveDayForecastHTML(forecast)))
+				.togglePopup();
+		}).catch(function () {
+		displayErrorMessage();
+	});
+}
+
 map.on('load', function () {
+	$('#map-loading').addClass('d-none');
 	$('#map').height($(window).height() - $('#main-nav').outerHeight());
-	// console.log($(window).height());
-	// console.log($('#main-nav').height());
+	$('#search-form').submit(function (e){
+		e.preventDefault();
+		hideAlerts();
+		Call.mapbox.getJSONSearchQuery($('#search-bar').val(), MAPBOX_API_KEY)
+			.then(function (res){
+				if (res.features.length === 0) {
+					displaySearchNotFoundAlert(res);
+				}
+				marker.setLngLat(res.features[0].center)
+					.togglePopup();
+				map.flyTo({
+					center: marker.getLngLat(),
+					zoom: 8,
+				});
+				moveMarkerAndDisplayForecast(marker.getLngLat());
+			});
+	});
 	map.resize()
 		.addControl(new mapboxgl.GeolocateControl({
 			positionOptions: {
@@ -96,45 +153,19 @@ map.on('load', function () {
 		}));
 	marker.setLngLat(map.getCenter())
 		.addTo(map);
-	$('#search-form').submit(function (e){
-		e.preventDefault();
-		Call.mapbox.getJSONSearchQuery($('#search-bar').val(), MAPBOX_API_KEY)
-			.then(function (res){
-				marker.setLngLat(res.features[0].center)
-					.togglePopup();
-				map.flyTo({
-					center: marker.getLngLat(),
-					zoom: 8,
-				})
-				getFiveDayForecastAtLocation(marker.getLngLat())
-					.then(function (res){
-						marker.setPopup(createPopup(marker.getLngLat(), createFiveDayForecastHTML(res)))
-							.togglePopup();
-					})
-			})
-	});
-	// getFiveDayForecastAtLocation(map.getCenter())
-	// 	.then(function (res){
-	// 		marker.setPopup(createPopup(map.getCenter(), createFiveDayForecastHTML(res)))
-	// 			.togglePopup();
-	// 	})
-	// 	.catch(function (err){
-	// 		console.log(err);
-	// 	});
+	moveMarkerAndDisplayForecast(map.getCenter());
 	marker.on('dragstart', function (){
 		if (marker.getPopup().isOpen()) {
 			marker.togglePopup()
 		}
 	});
 	marker.on('dragend', function (){
-		const newLocation = marker.getLngLat();
-		getFiveDayForecastAtLocation(newLocation)
-			.then(function (res){
-				marker.setPopup(createPopup(newLocation, createFiveDayForecastHTML(res)))
-					.togglePopup();
-			}).catch(function (err){
-				console.log(err);
-		});
+		marker.getPopup()
+			.setHTML(`<div id="popup-loading" class="spinner-border" role="status">
+						<span class="visually-hidden">Loading...</span>
+					</div>`);
+		marker.togglePopup();
+		moveMarkerAndDisplayForecast(marker.getLngLat());
 	});
 });
 
