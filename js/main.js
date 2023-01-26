@@ -14,7 +14,7 @@ const mapStyles = {
 const map = new mapboxgl.Map({
 	container: 'map',
 	style: localStorage.getItem("theme") !== 'dark' ? mapStyles.streets : mapStyles.dark,
-	zoom: 1,
+	zoom: 9,
 	center: [-98.4916, 29.4252]
 });
 const marker = new mapboxgl.Marker({
