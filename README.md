@@ -1,6 +1,6 @@
 # WeatherMap
 
-WeatherMap is a weather map application that allows users to get a 5-day forecast for a specific location. Simply search or move the pin on the map and the application will display the current temperature, humidity, wind speed, and a 5-day forecast for that location. WeatherMap uses APIs from [Mapbox](https://www.mapbox.com/) and [OpenWeather](https://openweathermap.org/api).
+WeatherMap is a weather map application that allows users to get a 5-day forecast for a specific location. Simply search or move the pin on the map and the application will display the current temperature, humidity, wind speed, and a 5-day forecast for that location. WeatherMap uses APIs from <a href="https://www.mapbox.com/" target="_blank">Mapbox</a> and <a href="https://openweathermap.org/api" target="_blank">OpenWeather</a>.
 
 ## Features
 - 5-day forecast for any location
