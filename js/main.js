@@ -1,9 +1,9 @@
 "use strict";
 
-import {MAPBOX_API_KEY, OPENWEATHER_API_KEY} from "./keys.js";
 import * as Call from "./call.js";
 
-mapboxgl.accessToken = MAPBOX_API_KEY;
+let map;
+let marker;
 const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const mapStyles = {
 	streets: 'mapbox://styles/mapbox/streets-v12',
@@ -11,29 +11,20 @@ const mapStyles = {
 	light: 'mapbox://styles/mapbox/light-v11',
 	dark: 'mapbox://styles/mapbox/dark-v11'
 }
-const map = new mapboxgl.Map({
-	container: 'map',
-	style: localStorage.getItem("theme") !== 'dark' ? mapStyles.streets : mapStyles.dark,
-	zoom: 9,
-	center: [-98.4916, 29.4252]
-});
-const marker = new mapboxgl.Marker({
-	draggable: true
-});
 let windowHeight = $(window).height();
 const popupStart = `
-				<div id="carouselExampleControls" class="carousel carousel-dark slide" data-bs-interval="false">
-					<div class="carousel-inner">`
+					<div id="carouselExampleControls" class="carousel carousel-dark slide" data-bs-interval="false">
+						<div class="carousel-inner">`
 const popupEnd = `
-				<button class="carousel-control-prev" type="button" data-bs-target="#carouselExampleControls" data-bs-slide="prev">
-				<span class="carousel-control-prev-icon" aria-hidden="true"></span>
-					<span class="visually-hidden">Previous</span>
-				  </button>
-				  <button class="carousel-control-next" type="button" data-bs-target="#carouselExampleControls" data-bs-slide="next">
-					<span class="carousel-control-next-icon" aria-hidden="true"></span>
-					<span class="visually-hidden">Next</span>
-				  </button>
-				</div>`
+					<button class="carousel-control-prev" type="button" data-bs-target="#carouselExampleControls" data-bs-slide="prev">
+					<span class="carousel-control-prev-icon" aria-hidden="true"></span>
+						<span class="visually-hidden">Previous</span>
+					  </button>
+					  <button class="carousel-control-next" type="button" data-bs-target="#carouselExampleControls" data-bs-slide="next">
+						<span class="carousel-control-next-icon" aria-hidden="true"></span>
+						<span class="visually-hidden">Next</span>
+					  </button>
+					</div>`
 
 function createPopup(coords, popupHTML = '') {
 	let theme = '';
@@ -114,7 +105,7 @@ function hideAlerts() {
 
 function moveMarkerAndDisplayForecast(newLocation) {
 	console.log(newLocation);
-	Call.openWeather.getForecastAtLocation(newLocation, OPENWEATHER_API_KEY)
+	Call.openWeather.getForecastAtLocation(newLocation)
 		.then(function (res) {
 			const forecast = getFiveDayForecastAtLocation(newLocation, res);
 			marker.setPopup(createPopup(newLocation, createFiveDayForecastHTML(forecast)))
@@ -140,96 +131,125 @@ function fixMarkerLng({lng, lat}) {
 	return newCoords
 }
 
-map.on('load', function () {
-	$('#map-loading').addClass('d-none');
-	$('#map').height($(window).height() - $('#main-nav').outerHeight());
-	$('#search-form').submit(function (e){
-		e.preventDefault();
-		hideAlerts();
-		Call.mapbox.getJSONSearchQuery($('#search-bar').val(), MAPBOX_API_KEY)
-			.then(function (res){
-				if (res.features.length === 0) {
-					displaySearchNotFoundAlert(res);
-				}
-				marker.setLngLat(res.features[0].center)
-					.togglePopup();
-				map.flyTo({
-					center: marker.getLngLat(),
-					zoom: 8,
-				});
-				moveMarkerAndDisplayForecast(marker.getLngLat());
-			}).catch(function (){
-				displayErrorMessage();
+// Initialize map/token and wire up UI
+async function init() {
+	// fetch Mapbox token from Netlify function
+	try {
+		const res = await fetch('/.netlify/functions/mapbox-token');
+		if (!res.ok) throw new Error('Could not load mapbox token');
+		const json = await res.json();
+		mapboxgl.accessToken = json.MAPBOX_API_KEY;
+	} catch (err) {
+		console.error('Failed to load Mapbox API token:', err);
+		// fallback to existing global if present (still safe fallback during dev)
+		if (window.MAPBOX_API_KEY) {
+			mapboxgl.accessToken = window.MAPBOX_API_KEY;
+		} else {
+			// allow app to continue but warn
+			console.warn('No Mapbox token available; map may not initialize properly.');
+		}
+	}
+
+	// create map and marker after token is set
+	map = new mapboxgl.Map({
+		container: 'map',
+		style: localStorage.getItem("theme") !== 'dark' ? mapStyles.streets : mapStyles.dark,
+		zoom: 9,
+		center: [-98.4916, 29.4252]
+	});
+	marker = new mapboxgl.Marker({
+		draggable: true
+	});
+
+	map.on('load', function () {
+		$('#map-loading').addClass('d-none');
+		$('#map').height($(window).height() - $('#main-nav').outerHeight());
+		$('#search-form').submit(function (e){
+			e.preventDefault();
+			hideAlerts();
+			Call.mapbox.getJSONSearchQuery($('#search-bar').val())
+				.then(function (res){
+					if (res.features.length === 0) {
+						displaySearchNotFoundAlert(res);
+					}
+					marker.setLngLat(res.features[0].center)
+						.togglePopup();
+					map.flyTo({
+						center: marker.getLngLat(),
+						zoom: 8,
+					});
+					moveMarkerAndDisplayForecast(marker.getLngLat());
+				}).catch(function (){
+					displayErrorMessage();
+			});
+		});
+		const geocoder = new MapboxGeocoder({
+			accessToken: mapboxgl.accessToken,
+			mapboxgl: mapboxgl,
+			marker: false
+		});
+		map.resize()
+			.addControl(geocoder);
+		geocoder.on('result', function (result){
+			console.log(result);
+			marker.setLngLat(result.result.center);
+			moveMarkerAndDisplayForecast({lat: result.result.center[1], lng: result.result.center[0]});
+		})
+		marker.setLngLat(map.getCenter())
+			.addTo(map);
+		moveMarkerAndDisplayForecast(map.getCenter());
+		marker.on('dragstart', function (){
+			if (marker.getPopup().isOpen()) {
+				marker.togglePopup()
+			}
+		});
+		marker.on('dragend', function (){
+			marker.getPopup()
+				.removeClassName('warning-popup')
+				.setHTML(`<div id="popup-loading" class="spinner-border" role="status">
+							<span class="visually-hidden">Loading...</span>
+						</div>`);
+			marker.togglePopup();
+			console.log(marker.getLngLat());
+			moveMarkerAndDisplayForecast(fixMarkerLng(marker.getLngLat()));
 		});
 	});
-	const geocoder = new MapboxGeocoder({
-		accessToken: mapboxgl.accessToken,
-		mapboxgl: mapboxgl,
-		marker: false
-	});
-	map.resize()
-		.addControl(geocoder);
-	geocoder.on('result', function (result){
-		console.log(result);
-		marker.setLngLat(result.result.center);
-		moveMarkerAndDisplayForecast({lat: result.result.center[1], lng: result.result.center[0]});
-	})
-	marker.setLngLat(map.getCenter())
-		.addTo(map);
-	moveMarkerAndDisplayForecast(map.getCenter());
-	marker.on('dragstart', function (){
-		if (marker.getPopup().isOpen()) {
-			marker.togglePopup()
-		}
-	});
-	marker.on('dragend', function (){
-		marker.getPopup()
-			.removeClassName('warning-popup')
-			.setHTML(`<div id="popup-loading" class="spinner-border" role="status">
-						<span class="visually-hidden">Loading...</span>
-					</div>`);
-		marker.togglePopup();
-		console.log(marker.getLngLat());
-		moveMarkerAndDisplayForecast(fixMarkerLng(marker.getLngLat()));
-	});
-});
 
-$('html').attr('data-bs-theme', `${localStorage.getItem('theme')}`)
+	$('html').attr('data-bs-theme', `${localStorage.getItem('theme')}`)
 
-$('#search-form').submit(function (e){
-	e.preventDefault();
-});
+	$('#search-form').submit(function (e){
+		e.preventDefault();
+	});
 
-$('#switch-theme')
-	.prop("checked", localStorage.getItem('theme') === 'dark')
-	.change(function (){
-	if (this.checked) {
-		// $('#theme-icon-dark').removeClass('d-none');
-		// $('#theme-icon-light').addClass('d-none');
-		$('html').attr("data-bs-theme", "dark");
-		map.setStyle(mapStyles.dark);
-		if (!(marker.getPopup()._classList.has('warning-popup'))) {
+	$('#switch-theme')
+		.prop("checked", localStorage.getItem('theme') === 'dark')
+		.change(function (){
+		if (this.checked) {
+			$('html').attr("data-bs-theme", "dark");
+			map.setStyle(mapStyles.dark);
+			if (!(marker.getPopup()._classList.has('warning-popup'))) {
+				marker.getPopup()
+					.addClassName('popup-dark');
+			}
+			localStorage.setItem('theme', 'dark');
+		} else {
+			$('html').attr("data-bs-theme", "light");
+			map.setStyle(mapStyles.streets)
+			if (!(marker.getPopup()._classList.has('warning-popup'))) {
 			marker.getPopup()
-				.addClassName('popup-dark');
-		}
-		localStorage.setItem('theme', 'dark');
-	} else {
-		// $('#theme-icon-light').removeClass('d-none');
-		// $('#theme-icon-dark').addClass('d-none');
-		$('html').attr("data-bs-theme", "light");
-		map.setStyle(mapStyles.streets)
-		if (!(marker.getPopup()._classList.has('warning-popup'))) {
-		marker.getPopup()
-			.removeClassName('popup-dark');
-		}
-		localStorage.setItem('theme', 'light');
+				.removeClassName('popup-dark');
+			}
+			localStorage.setItem('theme', 'light');
 
-	}
-});
+		}
+	});
 
-$(window).resize(function (){
-	if (windowHeight !== window.innerHeight) {
-		windowHeight = window.innerHeight;
-		$('#map').height($(window).height() - $('#main-nav').outerHeight());
-	}
-})
+	$(window).resize(function (){
+		if (windowHeight !== window.innerHeight) {
+			windowHeight = window.innerHeight;
+			$('#map').height($(window).height() - $('#main-nav').outerHeight());
+		}
+	})
+}
+
+init();
