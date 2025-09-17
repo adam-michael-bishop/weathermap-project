@@ -1,6 +1,5 @@
 [build]
   publish = "."   # or your folder with index.html
-  command = "npm run build"
 
 [functions]
   directory = "netlify/functions"
