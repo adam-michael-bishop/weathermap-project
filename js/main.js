@@ -135,7 +135,7 @@ function fixMarkerLng({lng, lat}) {
 async function init() {
 	// fetch Mapbox token from Netlify function
 	try {
-		const res = await fetch('/.netlify/functions/mapbox-token');
+		const res = await fetch('/.netlify/functions/api?fn=mapbox-token');
 		if (!res.ok) throw new Error('Could not load mapbox token');
 		const json = await res.json();
 		mapboxgl.accessToken = json.MAPBOX_API_KEY;
